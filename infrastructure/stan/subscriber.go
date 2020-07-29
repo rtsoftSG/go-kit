@@ -104,18 +104,16 @@ func (s Subscriber) ServeMsg(sc *stan.Conn) func(msg *stan.Msg) {
 			}()
 		}
 
+		// acknowledgment despite errors
+		if err := msg.Ack(); err != nil {
+			s.errorHandler.Handle(ctx, err)
+			s.errorEncoder(ctx, err)
+			return
+		}
+
 		for _, f := range s.before {
 			ctx = f(ctx, msg)
 		}
-
-		// acknowledgment despite errors
-		defer func() {
-			if err := msg.Ack(); err != nil {
-				s.errorHandler.Handle(ctx, err)
-				s.errorEncoder(ctx, err)
-				return
-			}
-		}()
 
 		request, err := s.dec(ctx, msg)
 		if err != nil {
